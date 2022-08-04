@@ -11,9 +11,9 @@ import("rtt_ros2_ndi")
 
 loadComponent("ndi", "rtt_ros2_ndi" )
 
-ndi.configureSensor("0A", "handle")
+ndi.configureSensor("0A", "template")
 ndi.configureSensor("0B", "tip")
-ndi.configureSensor("0C", "template")
+ndi.configureSensor("0C", "handle")
 
 
 setActivity("ndi", 0.01, 0, ORO_SCHED_OTHER)
