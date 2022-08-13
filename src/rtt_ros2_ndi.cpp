@@ -40,6 +40,7 @@ rtt_ros2_ndi::rtt_ros2_ndi( const std::string& name ) :
     { RTT::log(RTT::Error) << "tf2 service not loaded" << std::endl; }
   
   addOperation( configure_sensor ).doc( "Configure rtt_ros2_ndi sensor." );
+  addProperty( "devie_file", device_file );
   
 }
 
@@ -67,9 +68,9 @@ bool rtt_ros2_ndi::configureHook(){
   
   RTT::log(RTT::Info) << "Opening serial port" << RTT::endlog();
   serial.close();
-  try{serial.open("/dev/ttyUSB0");}
+  try{serial.open(device_file);}
   catch(boost::system::system_error& e){
-    RTT::log(RTT::Info) << "Failed to open serial port." << RTT::endlog();
+    RTT::log(RTT::Error) << "Failed to open serial port: " << device_file << RTT::endlog();
     return false;
   }
   
