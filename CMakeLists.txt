@@ -36,6 +36,11 @@ if(BUILD_TESTING)
 endif()
 
 ament_package()
+
+include_directories(
+  include 
+  )
+
 orocos_component(rtt_ros2_ndi src/rtt_ros2_ndi.cpp)
 target_link_libraries(rtt_ros2_ndi
   rtt_ros2::rtt_ros2
