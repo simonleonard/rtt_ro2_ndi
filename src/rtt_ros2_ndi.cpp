@@ -40,7 +40,7 @@ rtt_ros2_ndi::rtt_ros2_ndi( const std::string& name ) :
     { RTT::log(RTT::Error) << "tf2 service not loaded" << std::endl; }
   
   addOperation( configure_sensor ).doc( "Configure rtt_ros2_ndi sensor." );
-  addProperty( "devie_file", device_file );
+  addProperty( "device_file", device_file );
   
 }
 
