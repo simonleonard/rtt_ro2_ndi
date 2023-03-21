@@ -37,6 +37,8 @@ private:
   // serial port device file
   std::string device_file;
 
+  std::string reference_frame;
+  
   // recv buffer for serial port
   const static std::size_t BUF_SIZE=512;
   char buffer[BUF_SIZE];

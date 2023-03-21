@@ -19,7 +19,7 @@ endif()
 find_package(orocos-rtt REQUIRED HINTS /usr/local/orocos_toolchain/lib/cmake/orocos-rtt)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rtt_ros2 REQUIRED)
 find_package(rtt_ros2_node REQUIRED)
@@ -35,8 +35,6 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_package()
-
 include_directories(
   include 
   )
@@ -45,5 +43,9 @@ orocos_component(rtt_ros2_ndi src/rtt_ros2_ndi.cpp)
 target_link_libraries(rtt_ros2_ndi
   rtt_ros2::rtt_ros2
   rtt_ros2_node::rtt_ros2_node
-)
+  )
+ament_target_dependencies( rtt_ros2_ndi tf2 )
 orocos_generate_package()
+
+ament_package()
+

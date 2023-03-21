@@ -6,6 +6,10 @@
 #include <iomanip>
 #include <regex>
 
+#include <tf2/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/convert.h>
+
 #include <rtt/internal/GlobalService.hpp>
 
 #include <rtt/Component.hpp>
@@ -40,7 +44,8 @@ rtt_ros2_ndi::rtt_ros2_ndi( const std::string& name ) :
     { RTT::log(RTT::Error) << "tf2 service not loaded" << std::endl; }
   
   addOperation( configure_sensor ).doc( "Configure rtt_ros2_ndi sensor." );
-  addProperty( "devie_file", device_file );
+  addProperty( "device_file", device_file );
+  addProperty( "reference_frame", reference_frame );
   
 }
 
@@ -209,7 +214,9 @@ void rtt_ros2_ndi::updateHook(){
   unsigned int N=0;
   sscanf(tx0001, "%02X", &N);
   char* ptr = tx0001 + 2;
-  
+
+  std::vector<geometry_msgs::msg::TransformStamped> transforms;
+  int ref = -1;
   for( unsigned int i=0; i<N; i++ ){
     
     char ph[3];
@@ -253,6 +260,7 @@ void rtt_ros2_ndi::updateHook(){
 	geometry_msgs::msg::TransformStamped transform;
 	transform.header.frame_id = "NDI";
 	transform.child_frame_id = it->second.name;
+	if( it->second.name == reference_frame ){ ref = i;}
 	transform.transform.translation.x = p[0];
 	transform.transform.translation.y = p[1];
 	transform.transform.translation.z = p[2];
@@ -260,7 +268,8 @@ void rtt_ros2_ndi::updateHook(){
 	transform.transform.rotation.y = q[1];
 	transform.transform.rotation.z = q[2];
 	transform.transform.rotation.w = q[3];
-	broadcastTransform( transform );
+	//broadcastTransform( transform );
+	transforms.push_back( transform );
       }
       else
 	{ std::cout << "Handle not found " << ph << std::endl; }
@@ -269,8 +278,31 @@ void rtt_ros2_ndi::updateHook(){
     sscanf(ptr, "%08X", &frame );
     ptr+=8;
     ptr++;
-    
+
   }
+  if( ref == -1 ){
+    std::cout << "reference frame was not found" << std::endl;
+  }
+
+  else{
+    for( int i=0; i<N; i++ ){
+      if( i != ref ){
+	tf2::Transform Rt_NDI_ref, Rt_NDI_i, Rt_ref_i;
+	tf2::fromMsg( transforms[ref].transform, Rt_NDI_ref );
+	tf2::fromMsg( transforms[i].transform, Rt_NDI_i );
+	Rt_ref_i =  Rt_NDI_ref.inverse() * Rt_NDI_i;
+
+	geometry_msgs::msg::TransformStamped transform;
+	transform.header.frame_id = transforms[ref].child_frame_id;
+	transform.child_frame_id = transforms[i].child_frame_id;
+	tf2::convert(Rt_ref_i, transform.transform);
+	
+	broadcastTransform( transform );
+	
+      }
+    }
+  }
+  
   ptr+=4;
   
 }
