@@ -70,7 +70,8 @@ bool rtt_ros2_ndi::configureSensor( const std::string& port_handle,
 }
 
 bool rtt_ros2_ndi::configureHook(){
-  
+
+  RTT::log().setLogLevel( RTT::Logger::Error );
   RTT::log(RTT::Info) << "Opening serial port" << RTT::endlog();
   serial.close();
   try{serial.open(device_file);}
@@ -80,7 +81,7 @@ bool rtt_ros2_ndi::configureHook(){
   }
   
   RTT::log(RTT::Info) << "Configuring serial port" << RTT::endlog();
-  boost::asio::serial_port::baud_rate BAUD(921600);
+  boost::asio::serial_port::baud_rate BAUD(230400);
   boost::asio::serial_port::character_size csize(8);
   boost::asio::serial_port::parity PARITY(boost::asio::serial_port::parity::none);
   boost::asio::serial_port::stop_bits STOP(boost::asio::serial_port::stop_bits::one);
@@ -100,7 +101,15 @@ bool rtt_ros2_ndi::configureHook(){
   }
     
   unsigned int N=0;
-  
+
+  RTT::log(RTT::Info) << "Set Baud rate" << RTT::endlog();
+  send("COMM A0001");
+  if( recv("OKAY") == EFAILURE ){
+    std::cout << buffer << std::endl;
+    RTT::log(RTT::Error) << "Failed to set the Baud rate." << RTT::endlog();
+    return false;
+  }
+
   RTT::log(RTT::Info) << "Initializing NDI." << RTT::endlog();
   send("INIT ");
   if( recv("OKAY") == EFAILURE ){
@@ -114,7 +123,7 @@ bool rtt_ros2_ndi::configureHook(){
   
   // ports to be freed
   {
-    std::cout << "PHSR 01" << std::endl;
+    RTT::log(RTT::Info) << "Port Handle PHSR 01." << RTT::endlog();
     send("PHSR 01");
     recv();
     sscanf(buffer, "%02X", &N);
@@ -123,7 +132,6 @@ bool rtt_ros2_ndi::configureHook(){
   // ports to be initialied
   {
     RTT::log(RTT::Info) << "Port Handle PHSR 02." << RTT::endlog();
-    std::cout << "PHSR 02" << std::endl;
     send("PHSR 02");
     recv();
     
@@ -272,7 +280,7 @@ void rtt_ros2_ndi::updateHook(){
 	transforms.push_back( transform );
       }
       else
-	{ std::cout << "Handle not found " << ph << std::endl; }
+	{ RTT::log(RTT::Error) << "Handle not found " << ph << RTT::endlog(); }
     }
     unsigned int frame;
     sscanf(ptr, "%08X", &frame );
@@ -281,7 +289,8 @@ void rtt_ros2_ndi::updateHook(){
 
   }
   if( ref == -1 ){
-    std::cout << "reference frame was not found" << std::endl;
+    RTT::log(RTT::Error) << "Reference frame " << reference_frame << " was not found."
+			 << RTT::endlog();
   }
 
   else{
@@ -324,7 +333,7 @@ void rtt_ros2_ndi::send( const std::string& command ){
   try{
     serial.write_some(boost::asio::buffer(str.data(),str.size()));
   }catch(boost::system::system_error& e){
-    std::cout << "Failed to write: " << str.data() << std::endl;
+    RTT::log(RTT::Error) << "Failed to write: " << str.data() << RTT::endlog();
   }
 }
 
@@ -338,7 +347,7 @@ rtt_ros2_ndi::Errno rtt_ros2_ndi::recv( const std::string& response ){
     while( buffer[N-1] != '\r' );
     buffer[N] = '\0';
   }catch(boost::system::system_error& e){
-    std::cout << "Failed to receive" << std::endl;
+    RTT::log(RTT::Error) << "Failed to receive" << RTT::endlog();
   }
   
   std::string s(buffer);
