@@ -13,14 +13,13 @@ loadComponent("ndi", "rtt_ros2_ndi" )
 
 ndi.configureSensor("0A", "template")
 ndi.configureSensor("0B", "tip")
-ndi.configureSensor("0C", "handle")
+ndi.configureSensor("0C", "base")
+ndi.configureSensor("0D", "handle")
 
 
 setActivity("ndi", 0.01, 0, ORO_SCHED_OTHER)
 
 ndi.device_file = "/dev/ttyUSB0"
-ndi.reference_frame = "template"
+ndi.reference_frame = "base"
 ndi.configure()
 ndi.start()
-
-

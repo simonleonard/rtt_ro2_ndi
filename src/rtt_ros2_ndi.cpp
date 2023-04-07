@@ -13,6 +13,7 @@
 #include <rtt/internal/GlobalService.hpp>
 
 #include <rtt/Component.hpp>
+#include <rtt_ros2_node/rtt_ros2_node.hpp>
 
 rtt_ros2_ndi::rtt_ros2_ndi( const std::string& name ) :
   RTT::TaskContext( name ),
@@ -126,7 +127,21 @@ bool rtt_ros2_ndi::configureHook(){
     RTT::log(RTT::Info) << "Port Handle PHSR 01." << RTT::endlog();
     send("PHSR 01");
     recv();
-    sscanf(buffer, "%02X", &N);
+
+    char phsr01[BUF_SIZE];
+    memcpy(phsr01, buffer, BUF_SIZE);
+    sscanf(phsr01, "%02X", &N);
+    RTT::log(RTT::Info) << "Number of port to be freed: " << N << RTT::endlog();
+    
+    char* ptr=phsr01 + 2;
+    for( int i=0; i<N; i++ ){
+      char str[3];
+      sscanf(ptr, "%2c%*3c", str);
+      ptr+=5;
+      str[2] = '\0';
+      send("PHF " + std::string(str) );
+      recv();
+    }
   }
   
   // ports to be initialied
@@ -138,9 +153,9 @@ bool rtt_ros2_ndi::configureHook(){
     char phsr02[BUF_SIZE];
     memcpy(phsr02, buffer, BUF_SIZE);
     sscanf(phsr02, "%02X", &N);
+    RTT::log(RTT::Info) << "Number of allocated port initialized: " << N << RTT::endlog();
     
     char* ptr=phsr02 + 2;
-    std::cout << N << std::endl;
     for( unsigned int i=0; i<N; i++ ){
       char str[3];
       sscanf(ptr, "%2c%*3c", str);
@@ -161,7 +176,8 @@ bool rtt_ros2_ndi::configureHook(){
     char phsr00[BUF_SIZE];
     memcpy(phsr00, buffer, BUF_SIZE);
     sscanf(phsr00, "%02X", &N);
-    
+    RTT::log(RTT::Info) << "Number of allocated port handles: " << N << RTT::endlog();
+
     char* ptr=phsr00 + 2;
     for( unsigned int i=0; i<N; i++ ){
       char str[3];
@@ -169,6 +185,7 @@ bool rtt_ros2_ndi::configureHook(){
       ptr+=5;
       str[2] = '\0';
       send("PHINF " + std::string(str) + "0005");
+      std::cout << "PHINF " <<  std::string(str) << "0005" << std::endl;
       recv();
       
       char type[3], sernum[9];
@@ -178,6 +195,7 @@ bool rtt_ros2_ndi::configureHook(){
       std::map<std::string,Port>::iterator it = ports.find( std::string(str) );
       if(it != ports.end() ){
 	it->second.serial_number = std::string( sernum );
+	std::cout << "sernum " << std::string( sernum ) << std::endl;
 	it->second.type = std::string( type );
 	std::cout << it->second << std::endl;
       }
@@ -250,43 +268,44 @@ void rtt_ros2_ndi::updateHook(){
       for(int i=0; i<3; i++ ) p[i] = p[i] / (100.0*1000.0);
       for(int i=0; i<4; i++ ) q[i] = q[i] / 10000.0;
       /*
-	std::cout << ph << ": "
-	<< std::setw(13) << q[0]
-	<< std::setw(13) << q[1]
-	<< std::setw(13) << q[2]
-	<< std::setw(13) << q[3]
-	<< std::setw(13) << p[0]
-	<< std::setw(13) << p[1]
-	<< std::setw(13) << p[2]
-	//<< std::setw(13) << error/10000.0
-	<< std::endl;
-	//std::cout << q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3] << std::endl;
-	*/
+	    std::cout << ph << ": "
+	    << std::setw(13) << q[0]
+	    << std::setw(13) << q[1]
+	    << std::setw(13) << q[2]
+	    << std::setw(13) << q[3]
+	    << std::setw(13) << p[0]
+	    << std::setw(13) << p[1]
+	    << std::setw(13) << p[2]
+	    //<< std::setw(13) << error/10000.0
+	    << std::endl;
+	    //std::cout << q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3] << std::endl;
+	    */
       
       std::map<std::string,Port>::iterator it = ports.find( std::string(ph) );
       if(it != ports.end() ){
-	geometry_msgs::msg::TransformStamped transform;
-	transform.header.frame_id = "NDI";
-	transform.child_frame_id = it->second.name;
-	if( it->second.name == reference_frame ){ ref = i;}
-	transform.transform.translation.x = p[0];
-	transform.transform.translation.y = p[1];
-	transform.transform.translation.z = p[2];
-	transform.transform.rotation.x = q[0];
-	transform.transform.rotation.y = q[1];
-	transform.transform.rotation.z = q[2];
-	transform.transform.rotation.w = q[3];
-	//broadcastTransform( transform );
-	transforms.push_back( transform );
+	        geometry_msgs::msg::TransformStamped transform;
+	        transform.header.frame_id = "NDI";
+	        transform.child_frame_id = it->second.name;
+	        if( it->second.name == reference_frame ){ ref = i;}
+	        transform.transform.translation.x = p[0];
+	        transform.transform.translation.y = p[1];
+	        transform.transform.translation.z = p[2];
+	        transform.transform.rotation.x = q[0];
+	        transform.transform.rotation.y = q[1];
+	        transform.transform.rotation.z = q[2];
+	        transform.transform.rotation.w = q[3];
+	        //broadcastTransform( transform );
+	        transforms.push_back( transform );
       }
       else
-	{ RTT::log(RTT::Error) << "Handle not found " << ph << RTT::endlog(); }
+	    { 
+        RTT::log(RTT::Error) << "Handle not found " << ph << RTT::endlog(); 
+      }
     }
     unsigned int frame;
     sscanf(ptr, "%08X", &frame );
     ptr+=8;
     ptr++;
-
   }
   if( ref == -1 ){
     RTT::log(RTT::Error) << "Reference frame " << reference_frame << " was not found."
@@ -296,18 +315,18 @@ void rtt_ros2_ndi::updateHook(){
   else{
     for( int i=0; i<N; i++ ){
       if( i != ref ){
-	tf2::Transform Rt_NDI_ref, Rt_NDI_i, Rt_ref_i;
-	tf2::fromMsg( transforms[ref].transform, Rt_NDI_ref );
-	tf2::fromMsg( transforms[i].transform, Rt_NDI_i );
-	Rt_ref_i =  Rt_NDI_ref.inverse() * Rt_NDI_i;
+	      tf2::Transform Rt_NDI_ref, Rt_NDI_i, Rt_ref_i;
+	      tf2::fromMsg( transforms[ref].transform, Rt_NDI_ref );
+	      tf2::fromMsg( transforms[i].transform, Rt_NDI_i );
+	      Rt_ref_i =  Rt_NDI_ref.inverse() * Rt_NDI_i;
 
-	geometry_msgs::msg::TransformStamped transform;
-	transform.header.frame_id = transforms[ref].child_frame_id;
-	transform.child_frame_id = transforms[i].child_frame_id;
-	tf2::convert(Rt_ref_i, transform.transform);
-	
-	broadcastTransform( transform );
-	
+	      geometry_msgs::msg::TransformStamped transform;
+	      transform.header.frame_id = transforms[ref].child_frame_id;
+	      transform.child_frame_id = transforms[i].child_frame_id;
+	      tf2::convert(Rt_ref_i, transform.transform);
+        transform.header.stamp = rtt_ros2_node::getNode(this)->now();
+
+	      broadcastTransform( transform );
       }
     }
   }
