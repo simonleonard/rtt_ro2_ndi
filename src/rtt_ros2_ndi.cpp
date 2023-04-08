@@ -242,7 +242,7 @@ void rtt_ros2_ndi::updateHook(){
   char* ptr = tx0001 + 2;
 
   std::vector<geometry_msgs::msg::TransformStamped> transforms;
-  int ref = -1;
+  int ref = -1, tip = -1;
   for( unsigned int i=0; i<N; i++ ){
     
     char ph[3];
@@ -287,6 +287,7 @@ void rtt_ros2_ndi::updateHook(){
 	        transform.header.frame_id = "NDI";
 	        transform.child_frame_id = it->second.name;
 	        if( it->second.name == reference_frame ){ ref = i;}
+          else if( it->second.name == "tip") { tip = i; }
 	        transform.transform.translation.x = p[0];
 	        transform.transform.translation.y = p[1];
 	        transform.transform.translation.z = p[2];
@@ -310,15 +311,25 @@ void rtt_ros2_ndi::updateHook(){
   if( ref == -1 ){
     RTT::log(RTT::Error) << "Reference frame " << reference_frame << " was not found."
 			 << RTT::endlog();
+  } else if(tip == -1){
+    RTT::log(RTT::Error) << "Tip not found "<< RTT::endlog();
   }
-
   else{
+    tf2::Transform Rt_NDI_ref;
+    tf2::fromMsg( transforms[ref].transform, Rt_NDI_ref );
+
+    tf2::Transform Rt_offset(tf2::Quaternion(1.0, 0.0, 0.0, 0.0), tf2::Vector3{});
+    tf2::Transform Rt_ref_NDI = (Rt_NDI_ref * Rt_offset).inverse();
+
     for( int i=0; i<N; i++ ){
       if( i != ref ){
-	      tf2::Transform Rt_NDI_ref, Rt_NDI_i, Rt_ref_i;
-	      tf2::fromMsg( transforms[ref].transform, Rt_NDI_ref );
+	      tf2::Transform Rt_NDI_i, Rt_ref_i;
 	      tf2::fromMsg( transforms[i].transform, Rt_NDI_i );
-	      Rt_ref_i =  Rt_NDI_ref.inverse() * Rt_NDI_i;
+
+        if(i != tip)
+          Rt_NDI_i = Rt_NDI_i * Rt_offset;
+
+	      Rt_ref_i =  Rt_ref_NDI * Rt_NDI_i;
 
 	      geometry_msgs::msg::TransformStamped transform;
 	      transform.header.frame_id = transforms[ref].child_frame_id;

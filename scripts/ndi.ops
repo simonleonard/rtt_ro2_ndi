@@ -19,7 +19,7 @@ ndi.configureSensor("0D", "handle")
 
 setActivity("ndi", 0.01, 0, ORO_SCHED_OTHER)
 
-ndi.device_file = "/dev/ttyUSB0"
+ndi.device_file = "/dev/ttyUSB2"
 ndi.reference_frame = "base"
 ndi.configure()
 ndi.start()
