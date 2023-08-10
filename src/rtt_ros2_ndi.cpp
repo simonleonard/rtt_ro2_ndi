@@ -77,7 +77,7 @@ bool rtt_ros2_ndi::configureHook() {
     }
 
     RTT::log(RTT::Info) << "Configuring serial port" << RTT::endlog();
-    boost::asio::serial_port::baud_rate BAUD(230400);
+    boost::asio::serial_port::baud_rate BAUD(9600);
     boost::asio::serial_port::character_size csize(8);
     boost::asio::serial_port::parity PARITY(
         boost::asio::serial_port::parity::none);
@@ -100,6 +100,16 @@ bool rtt_ros2_ndi::configureHook() {
 
     unsigned int N = 0;
 
+    serial.send_break();
+    
+    RTT::log(RTT::Info) << "Reset" << RTT::endlog();
+    send("RESET 1");
+    if (recv("RESETBE6F") == EFAILURE) {
+        std::cout << buffer << std::endl;
+        RTT::log(RTT::Error) << "Failed to reset." << RTT::endlog();
+        return false;
+    }
+    
     RTT::log(RTT::Info) << "Set Baud rate" << RTT::endlog();
     send("COMM A0001");
     if (recv("OKAY") == EFAILURE) {
@@ -108,6 +118,16 @@ bool rtt_ros2_ndi::configureHook() {
         return false;
     }
 
+    // reopen the serial port at 230400 + flow control
+    try {
+      serial.set_option(boost::asio::serial_port::baud_rate(230400));
+      serial.set_option(boost::asio::serial_port::flow_control(boost::asio::serial_port::flow_control::hardware));
+    } catch (boost::system::system_error& e) {
+      RTT::log(RTT::Error)
+	<< "Failed to configure serial port." << RTT::endlog();
+      return false;
+    }
+    
     RTT::log(RTT::Info) << "Initializing NDI." << RTT::endlog();
     send("INIT ");
     if (recv("OKAY") == EFAILURE) {
@@ -350,8 +370,8 @@ void rtt_ros2_ndi::updateHook() {
 }
 
 void rtt_ros2_ndi::stopHook() {
-    send("TSTOP");
-    recv("OKAY");
+    send("TSTOP ");
+    recv("OKAYA896");
 }
 
 void rtt_ros2_ndi::cleanupHook() {
@@ -372,6 +392,7 @@ void rtt_ros2_ndi::send(const std::string& command) {
 }
 
 rtt_ros2_ndi::Errno rtt_ros2_ndi::recv(const std::string& response) {
+    memset(buffer, 0, sizeof(buffer));
     try {
         std::size_t N = 0;
         do {
@@ -382,7 +403,6 @@ rtt_ros2_ndi::Errno rtt_ros2_ndi::recv(const std::string& response) {
     } catch (boost::system::system_error& e) {
         RTT::log(RTT::Error) << "Failed to receive" << RTT::endlog();
     }
-
     std::string s(buffer);
     if (s.find(response) == std::string::npos) return EFAILURE;
     return ESUCCESS;
